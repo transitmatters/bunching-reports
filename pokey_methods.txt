@@ -1,0 +1,22 @@
+Bus event data was downloaded from MassDOT's OpenData portal:
+(https://mbta-massdot.opendata.arcgis.com/datasets/MassDOT::mbta-bus-arrival-departure-times-2023/about).
+The data analyzed here are from the month of June 2023.
+These event data were combined with the shapes data from MBTA's GTFS archive for June 15, 2023.
+We selected only those trips that had a timepoint at the most common starting-terminus and ending-terminus
+for each route and used these timepoints to calculate the duration of each trip.
+The distance between the termini was calculated along the route's representative trip's shape.
+The "day" speeds and counts include trips departing the starting-terminus between the hours of 7am and 18:59pm M-F.
+The "offhour" speeds and counts include all trips outside of this selection.
+The total speeds includes all trips.
+
+There are a few anomalies in the data that one should be wary of:
+Firstly, some routes like the 85 had very few timepoints in the data.
+Secondly, if any routes have multiple route patterns with the same starting- and ending-termini
+  we may be using the wrong distance for some trips. This can lead to inaccuracies.
+    [ we will need to audit any metrics we publish for this issue. ]
+  I think I noticed this with the 62, for instance. We'll have to be careful.
+Lastly, there are several routes that had either no representative route pattern, or multiple.
+  These were not included in this analysis. Those routes are:
+  4, 137, 16, 191, 192, 193, 194, 222, 225, 29, 351, 40, 411, 451, 95, CT2, CT3, and the Silver Line.
+  Several routes had the above issue when analyzing a single direction. Those routes are: [i=inbound, o=outbound]
+  119i, 171i, 240o, 33o, 354i, 439o, 501i, 70i, 76i.
