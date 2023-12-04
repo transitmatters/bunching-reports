@@ -1,0 +1,13 @@
+Bus event data was downloaded from MassDOT's OpenData portal:
+(https://mbta-massdot.opendata.arcgis.com/datasets/MassDOT::mbta-bus-arrival-departure-times-2023/about).
+The data analyzed here are from the month of June 2023.
+This data was paired with the GTFS archive for each day in the following manner:
+The GTFS trips for each route on each day were used to calculate the scheduled headway at each stop
+Each arrival event was then assigned the nearest scheduled headway preceeding it.
+The actual headways were compared to these scheduled headways for trips M-F 7a-19p.
+A bus was determined to be bunched if the actual headway was < 0.25 * the scheduled headway
+[[ this is up for debate, I've analyzed the data a few ways, we can pick what we want to do]]
+The following routes were not included in this analysis:
+171, 191, 192, 193, 194, CT2, CT3, and the Silver Line.
+
+(Possibly we will filter by minimum number of trips required to be measured on headway standards.)

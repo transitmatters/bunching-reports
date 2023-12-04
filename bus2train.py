@@ -88,6 +88,7 @@ def process_events(df):
         "trip_id",
         "direction_id",
         "stop_id",
+        "time_point_id",
         "stop_sequence",
         "vehicle_id",
         "vehicle_label",
@@ -98,7 +99,7 @@ def process_events(df):
     ]
 
     df = df.rename(columns={"half_trip_id": "trip_id", "time_point_order": "stop_sequence", "actual": "event_time"})
-    df = df.drop(columns=["time_point_id", "standard_type", "scheduled", "scheduled_headway", "headway"])
+    df = df.drop(columns=["standard_type", "scheduled", "scheduled_headway", "headway"])
 
     df = add_gtfs_headways(df)
 

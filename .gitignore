@@ -1,4 +1,8 @@
 *.pdf
 *.png
 __pycache__/
-
+in-data/
+out-data/
+data/
+.ipynb_checkpoints/
+*.csv

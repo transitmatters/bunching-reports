@@ -1,6 +1,7 @@
 import argparse
 import datetime
 import pathlib
+import glob
 
 import pandas as pd
 from pandas.tseries.holiday import USFederalHolidayCalendar as calendar
@@ -17,14 +18,9 @@ from fpdf import FPDF
 
 sns.set(rc={'figure.facecolor':'white', "figure.autolayout": True})
 
-CHECKPOINT_FILE = "./in-data/MBTA_GTFS/checkpoints.txt"
+CHECKPOINT_FILE = "./data/in-data/MBTA_GTFS/checkpoints.txt"
 DATAFILES = {
-    'January': "./in-data/2022/MBTA_Bus_Arrival_Departure_Times_2022/MBTA-Bus-Arrival-Departure-Times_2022-01.csv",
-    "February": "./in-data/2022/MBTA_Bus_Arrival_Departure_Times_2022/MBTA-Bus-Arrival-Departure-Times_2022-02.csv",
-    'March': "./in-data/2022/MBTA_Bus_Arrival_Departure_Times_2022/MBTA-Bus-Arrival-Departure-Times_2022-03.csv",
-    'April': "./in-data/2022/MBTA_Bus_Arrival_Departure_Times_2022/MBTA-Bus-Arrival-Departure-Times_2022-04.csv",
-    'May': "./in-data/2022/MBTA_Bus_Arrival_Departure_Times_2022/MBTA-Bus-Arrival-Departure-Times_2022-05.csv",
-    'June': "./in-data/2022/MBTA_Bus_Arrival_Departure_Times_2022/MBTA-Bus-Arrival-Departure-Times_2022-06.csv",
+    'October': "./data/in-data/2023/MBTA-Bus-Arrival-Departure-Times_2023-10.csv"
 }
 
 """
@@ -46,15 +42,44 @@ One more viz? random stringilne possible, or something else
 def load_data(filename, route):
     monthly = pd.read_csv(filename, parse_dates=["scheduled", "actual"])
     monthly["time_point_id"] = monthly["time_point_id"].str.lower()
-    monthly.loc[monthly["time_point_id"] == "dudly", "time_point_id"] = "nubn"
+    # monthly.loc[monthly["time_point_id"] == "dudly", "time_point_id"] = "nubn"
     return monthly.loc[monthly["route_id"] == route].copy()
 
+def load_data2(month, route):
+    if month == "October":
+        month = 10
+    route_output = []
+    
+    for direction_id in [0, 1]:
+        files = glob.glob(f"./data/out-data/Events/monthly-bus-data/{route}-{direction_id}-*/Year=2023/Month={month}/events.csv.gz", recursive=True)
+
+        for f in files:
+            df = pd.read_csv(f, parse_dates=['service_date',"event_time"])
+            df = df[df.event_type == "DEP"]
+            df['actual_headway'] = df.groupby('service_date').event_time.diff().dt.seconds
+            # df = df[['actual_headway', 'scheduled_headway']].dropna()
+            df['direction_id'] = "Outbound" if direction_id == 0 else "Inbound"
+            df.rename(columns={'stop_sequence': 'time_point_order',
+                               'actual_headway': 'headway',
+                               'scheduled_headway': 'scheduled',
+                               'trip_id': 'half_trip_id',
+                               'event_time': 'actual'}, inplace=True)
+            df['time_point_id'] = df['time_point_id'].str.lower()
+            route_output.append(df)
+            
+    tdf = pd.concat(route_output)
+
+    tdf['bunched'] = tdf['headway'] / tdf['scheduled'] < 0.25
+
+    return tdf.dropna(subset=["headway", "scheduled"])
+
 def generate_report(route, month, outname):
-    filename = DATAFILES[month]
+    # filename = DATAFILES[month]
 
     print("loading data...")
-    data = load_data(filename, route)
-    data["bunched"] = data["headway"] < 120
+    data = load_data2(month, route)
+
+    # data["bunched"] = data["headway"] / data["scheduled"] < 0.25
 
     pdf = FPDF('P', 'in', 'letter')
     for direction in ["Inbound", "Outbound"]:
@@ -63,6 +88,7 @@ def generate_report(route, month, outname):
 
         onedir_data = data.loc[data["direction_id"] == direction].copy()
         timepoints = get_timepoints(onedir_data)
+        print(timepoints)
 
         print("drawing charts:", direction)
         draw_charts(onedir_data, timepoints, imgdir)
@@ -86,7 +112,7 @@ def add_charts_to_pdf(pdf, route, direction, month, tpts, imgdir):
     pdf.set_font('Arial', 'B', 16)
     pdf.cell(0, .4, f"Route {route} - {direction}",
              border='B', align='L')
-    pdf.cell(0, 0.4, f"{month} 2022",
+    pdf.cell(0, 0.4, f"{month} 2023",
              border=0, align='R')
     pdf.ln(0.5)
 
@@ -94,7 +120,7 @@ def add_charts_to_pdf(pdf, route, direction, month, tpts, imgdir):
     pdf.set_font("Arial", '', 9)
     pdf.multi_cell(4.5, 0.2,
         "The following charts show bunching events as a pecentage of total trips. " + 
-        "Here, bunching is defined as headways that are less than 2 minutes.",
+        "Here, bunching is defined as headways < 25% of the scheduled_headway.",
         )
     pdf.ln(0.25)
 
@@ -120,9 +146,9 @@ def add_charts_to_pdf(pdf, route, direction, month, tpts, imgdir):
     pdf.ln(h)
     for _, row in table.iterrows():
         pdf.set_x(tblx)
-        pdf.cell(c0w, h, str(row[0]), align='R', border=1)
-        pdf.cell(c1w, h, row[1], align='C', border=1)
-        pdf.cell(c2w, h, row[2], align='L', border=1)
+        pdf.cell(c0w, h, str(row.iloc[0]), align='R', border=1)
+        pdf.cell(c1w, h, row.iloc[1], align='C', border=1)
+        pdf.cell(c2w, h, row.iloc[2], align='L', border=1)
         pdf.ln(h)
 
 
@@ -157,7 +183,7 @@ def draw_overview_chart(data, tpts, outname):
 
     sns.set_style("darkgrid")
     plt.figure()
-    g = sns.barplot(data=metric, x="time_point_id", y="percent", order=tpts["time_point_id"][1:-1])
+    g = sns.barplot(data=metric, x="time_point_id", y="percent", order=tpts["time_point_id"][0:-1])
     plt.xticks(rotation=45)
     g.get_figure().savefig(outname)
 
@@ -214,7 +240,7 @@ def draw_time_of_day_plots(data, tpts, outname):
                    .reset_index() \
                    .rename(columns={first_stop: "first", last_stop: "last"})
     # Calculate hour of departure from first stop
-    bytrip["departure_hour"] = (bytrip[("actual", "first")] - OFFSET) // np.timedelta64(1, 'h')
+    bytrip["departure_hour"] = (bytrip[("actual", "first")] - bytrip.service_date).dt.total_seconds() // 3600
     bytrip = bytrip.dropna().drop("actual", axis=1, level=0)
 
     # label business days as weekday
@@ -287,5 +313,5 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
 
-    generate_report(args.route, args.month, f"{args.route}_{args.month}22.pdf")
+    generate_report(args.route, args.month, f"{args.route}_{args.month}2023.pdf")
     

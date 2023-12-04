@@ -84,6 +84,16 @@ def read_gtfs(date: datetime.date):
     stops.arrival_time = pd.to_timedelta(stops.arrival_time)
     stops.departure_time = pd.to_timedelta(stops.departure_time)
 
+    trips.route_id = trips.route_id.replace({
+        '741': 'SL1',
+        '742': 'SL2',
+        # '743': 'SL3',
+        '751': 'SL4',
+        '749': 'SL5',
+        '747': 'CT2',
+        '708': 'CT3'
+    })
+
     return trips, stops
 
 
